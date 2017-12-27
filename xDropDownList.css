@@ -1,0 +1,134 @@
+/**
+ * Created by XitangChen on 2017-07-28.
+ */
+.x-modal-box {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 9999;
+    display: block;
+    background: transparent;
+}
+.x-dropdown-box {
+    position: absolute;
+    border: 1px solid #3399cc;
+    background-color: white;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+}
+.x-dropdown-box .hidden {
+    display: none;
+}
+.x-dropdown-body > ul {
+    max-height: 200px;
+    overflow: auto;
+}
+.x-dropdown-body > ul,
+.x-dropdown-body > ul > li {
+    margin: 0;
+    padding: 0;
+    cursor: default;
+}
+.x-dropdown-body > ul > li,
+.x-dropdown-body > .no-result,
+.x-dropdown-body > .x-filter-box {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 3px 5px;
+}
+.x-dropdown-body > ul > li {
+    overflow: visible;
+}
+.x-dropdown-body > ul > li:hover {
+    background-color: #3399cc;
+    color: white;
+}
+.x-dropdown-body > ul > li.selected {
+    display: none;
+}
+.x-filter-box input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 3px 5px;
+    font-family: inherit;
+    border: 1px solid #ddd;
+    background: #fcfcfc;
+}
+.x-filter-box input:focus {
+    color: #000;
+    background: #f1f8fb;
+    border-color: #3399cc;
+}
+.tags-item {
+    position: relative;
+}
+.tags-item .x-form-control {
+    display: none;
+}
+.tags-item .tag {
+    display: inline-block;
+    background-color: #e2f1f8;
+    border-right: 1px solid white;
+}
+.tags-item .tag.empty-placeholder {
+    background-color: transparent;
+}
+.tags-item .dropdown-arrow {
+    position: absolute;
+    top: 0.7em;
+    right: 5px;
+    width: 0;
+    height: 0;
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 6px solid #999;
+}
+.empty-placeholder {
+    color: #ccc;
+}
+.x-icon-close {
+    margin-left: 5px;
+    color: #999;
+    cursor: pointer;
+}
+.x-icon-close:after {
+    content: '\2a2f';
+    font-size: 18px;
+    line-height: 5px;
+    font-style: normal;
+    font-weight: normal;
+}
+.x-icon-close:hover {
+    color: #333;
+}
+.select-like-box.tags-item {
+    position: relative;
+    display: inline-block;
+    background-color: white;
+    border: 1px solid #bbb;
+    vertical-align: middle;
+}
+.select-like-box.tags-item select {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+}
+.disable-input-overlay .x-dropdown-header {
+    display: none;
+}
+.disable-input-overlay .x-dropdown-body {
+    padding-top: 5px;
+}
+.disable-input-overlay .x-dropdown-box,
+.disable-input-overlay input:focus {
+    border: 1px solid #78c1e8;
+}
+.disable-input-overlay .x-dropdown-box {
+    box-shadow: none;
+}
