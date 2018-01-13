@@ -1,6 +1,6 @@
 /**
  * 常用方法工具辅助类
- * Author: XitangChen
+ * Author: chenxitang@uinnova.com
  * Created Date: 2017-07-28
  * Last Modified: 2017-08-30
  */

@@ -1,6 +1,6 @@
 /**
  * 加载前提：xHelper/jQuery/doT
- * Created by XitangChen on 2017-11-16.
+ * Created by chenxitang on 2017-11-16.
  */
 !function (xHelper, $, doT) {
   var forEach = xHelper.forEach,
@@ -287,6 +287,7 @@
         });
       })();
       //tfoot
+      if (me.pager) delete me.pager;
       enablePaging && xHelper.checkNamespace('ui.widget.Pagination', xHelper, function (exists, p) {
         if (exists && p) {
           if (!me.tableFoot) me.tableFoot = $('<div class="table-foot"/>').appendTo(me.tableBody.parent());
@@ -295,7 +296,7 @@
               'pageNum', 'pageSize', ['totalRows', 'recordCount']
             ]));
           if (!$box.length) $box = $('<div class="page-nav"/>').appendTo(me.tableFoot);
-          new p($box[0], po).render(function (evt, pageInfo) {
+          me.pager = new p($box[0], po).render(function (evt, pageInfo) {
             getFunction(me.options.onPageItemClick).call(this, evt, pageInfo, me);
           });
         }

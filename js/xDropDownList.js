@@ -1,5 +1,5 @@
 /**
- * Created by XitangChen on 2017-07-28.
+ * Created by chenxitang on 2017-07-28.
  */
 // 自定义下拉列表选项组件定义类
 xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper) {
@@ -281,7 +281,9 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
     }
 
     function setOptionsContent(data, isFiltering) {
-      modalBox && (ulBox.innerHTML = getOptionsString(data, isFiltering));
+      if (!modalBox) return;
+      ulBox.innerHTML = getOptionsString(data, isFiltering);
+      getFunction(options.onListLoad).call(me, ulBox);//在列表内容加载后调用
     }
 
     function getNoResultBox() { return noResultBox; }
@@ -498,7 +500,10 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
       },
       show: show,
       close: close,
-      interpolate: interpolate
+      interpolate: interpolate,
+      reposition: function () {
+        modalBox && getStyle(modalBox, 'display') !== 'none' && positionBox();
+      }
     });
 
     getFunction(options.onload).call(me, options);

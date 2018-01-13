@@ -1,5 +1,5 @@
 /**
- * Created by XitangChen on 2017-12-26.
+ * Created by chenxitang on 2017-12-26.
  */
 !function (xHelper) {
   'use strict';
