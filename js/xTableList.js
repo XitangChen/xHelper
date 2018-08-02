@@ -1,6 +1,6 @@
 /**
  * 加载前提：xHelper/jQuery/doT
- * Created by chenxitang on 2017-11-16.
+ * Created by Xitang Chen on 2017-11-16.
  */
 !function (xHelper, $, doT) {
   var forEach = xHelper.forEach,
@@ -51,6 +51,21 @@
     return a;
   }
 
+
+  /**
+   * 构造函数
+   * @param {*} options
+   * {
+   *   {HTMLElement} el,
+   *   {Array(Array(String, String))} fields,
+   *   {Boolean} enablePaging,
+   *   {Boolean/Object} showSeqCol,
+   *   {Boolean/Object} showOpCol
+   *   fn: {
+   *     {Function} renderTemplate (templateId, data),
+   *     {Function} fieldsFormatter (fields)
+   *   }
+   */
   function TableList(options) {
     if (isString(options) || isHTMLElement(options)) options = { el: options };
     else if (!isObject(options)) options = {};
@@ -76,7 +91,8 @@
           },
           getOpCol: function () { return getOpCol(me); },
           getSeqCol: function () { return getSeqCol(me); },
-          PropNameHelper: PropNameHelper
+          PropNameHelper: PropNameHelper,
+          getFormattedFields: getFormattedFields
         }
       }),
       fields: getFormattedFields(options.fields),
@@ -194,7 +210,7 @@
           return me.options.fn.getWrappedData(data);
         },
         getFields = function () {
-          var _data = data;
+          var _data = data, fieldsFormatter = me.options.fn.fieldsFormatter;
           if (!isArray(me.fields)) me.fields = [];
           if (!me.fields.length && _data) {
             if (isArray(_data)) _data = _data[0];
@@ -204,9 +220,11 @@
               });
             }
           }
-          return (seqCol.visible ? [getFieldItem(seqCol.key, seqCol.text)] : [])
+          _data = (seqCol.visible ? [getFieldItem(seqCol.key, seqCol.text)] : [])
             .concat(me.fields
               .concat(opCol.visible ? [getFieldItem(opCol.key, opCol.text)] : []));
+          if (isFunction(fieldsFormatter)) _data = fieldsFormatter.call(me.options.fn, _data) || _data;
+          return _data;
         },
         getTrHtml = function (data, tmpl, isObject, index) {
           var html = [], v = isObject && getFunction(me.options.getItemPrimaryVal)(data, index);
@@ -255,8 +273,11 @@
             });
             return o;
           }(getFields(), {})));
-        } else if (compiledTmpl = oTmpl.thTmpl.compiled.default) {
-          content = getTrHtml(me.fields, compiledTmpl);
+        } else {
+          compiledTmpl = oTmpl.thTmpl.compiled.default;
+          if (compiledTmpl) {
+            content = getTrHtml(me.fields, compiledTmpl);
+          }
         }
         content !== null && me.thead.html(content);
         content = null;
@@ -317,7 +338,7 @@
           if (!rowData || !isObject(rowData)) return;
           rowData[thiz.name] = function (tagName, type, value) {
             if (tagName !== 'INPUT' || !/^(?:radio|checkbox)$/i.test(type || '')) return value;
-            value = map($this.closest('td,th').find('[name="' + name + '"]:checked').toArray(), function (input) {
+            value = map($this.closest('td,th').find('[name="' + thiz.name + '"]:checked').toArray(), function (input) {
               return input.value;
             });
             if (value.length === 1) value = value[0];

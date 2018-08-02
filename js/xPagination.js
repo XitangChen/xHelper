@@ -1,5 +1,5 @@
 /**
- * Created by chenxitang on 2017-12-26.
+ * Created by Xitang Chen on 2017-12-26.
  */
 !function (xHelper) {
   'use strict';
@@ -16,6 +16,7 @@
   }
   function getPageInfoObject(o) {
     var _o = {};
+    o = o || {};
     forEach(['pageSize', 'pageNum', 'recordCount', 'recordCount'], function (key) {
       _o[key] = parseInt(o[key], 10) || 0;
     });

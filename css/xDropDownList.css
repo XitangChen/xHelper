@@ -1,6 +1,3 @@
-/**
- * Created by chenxitang on 2017-07-28.
- */
 .x-modal-box {
     position: fixed;
     top: 0;
@@ -13,7 +10,7 @@
 }
 .x-dropdown-box {
     position: absolute;
-    border: 1px solid #3399cc;
+    border: 1px solid #40a8df;
     background-color: white;
     box-shadow: 0 1px 6px rgba(0,0,0,0.3);
 }
@@ -40,13 +37,17 @@
 }
 .x-dropdown-body > ul > li {
     overflow: visible;
+    font-size: 12px;
 }
 .x-dropdown-body > ul > li:hover {
-    background-color: #3399cc;
-    color: white;
+    background-color: #f4f4f4;
 }
 .x-dropdown-body > ul > li.selected {
     display: none;
+}
+.x-dropdown-body > .no-result {
+    font-size: 12px;
+    color: #ccc;
 }
 .x-filter-box input {
     width: 100%;
@@ -55,11 +56,13 @@
     font-family: inherit;
     border: 1px solid #ddd;
     background: #fcfcfc;
+    height: 24px;
+    line-height: 24px;
 }
 .x-filter-box input:focus {
     color: #000;
     background: #f1f8fb;
-    border-color: #3399cc;
+    border-color: #40a8df;
 }
 .tags-item {
     position: relative;
@@ -83,7 +86,7 @@
     height: 0;
     border-left: 3px solid transparent;
     border-right: 3px solid transparent;
-    border-top: 6px solid #999;
+    border-top: 6px solid #ddd;
 }
 .empty-placeholder {
     color: #ccc;
@@ -94,11 +97,12 @@
     cursor: pointer;
 }
 .x-icon-close:after {
-    content: '\2a2f';
+    content: '\00d7';
     font-size: 18px;
-    line-height: 5px;
+    line-height: 18px;
     font-style: normal;
     font-weight: normal;
+    font-family: Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 }
 .x-icon-close:hover {
     color: #333;
@@ -107,7 +111,7 @@
     position: relative;
     display: inline-block;
     background-color: white;
-    border: 1px solid #bbb;
+    border: 1px solid #ddd;
     vertical-align: middle;
 }
 .select-like-box.tags-item select {
@@ -127,8 +131,15 @@
 }
 .disable-input-overlay .x-dropdown-box,
 .disable-input-overlay input:focus {
-    border: 1px solid #78c1e8;
+    border: 1px solid #40a8df;
 }
 .disable-input-overlay .x-dropdown-box {
     box-shadow: none;
+}
+.x-modal-box.search-filter-box .x-dropdown-header .x-form-control {
+  width: 100%;
+  border: none!important;
+}
+.x-modal-box.search-filter-box .x-dropdown-body > ul > li.selected {
+  display: inherit;
 }

@@ -1,8 +1,8 @@
 /**
- * Created by chenxitang on 2017-07-28.
+ * Created by xitangchen on 2017-07-28.
  */
 // 自定义下拉列表选项组件定义类
-xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper) {
+!function (window, helper) {
   var isNullOrUndefined = helper.isNullOrUndefined,
     isNullOrUndefinedOrEmpty = helper.isNullOrUndefinedOrEmpty,
     getOffset = helper.getOffset,
@@ -24,9 +24,16 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
     isString = helper.isString,
     isHTMLElement = helper.isHTMLElement,
     isArray = helper.isArray,
+    isPromise = helper.isPromise,
     htmlEncode = helper.htmlEncode,
     addEventListener = helper.addEventListener,
-    removeEventListener = helper.removeEventListener;
+    removeEventListener = helper.removeEventListener,
+    getChildren = helper.getChildren,
+    getCamelCase = helper.getCamelCase,
+    getViewportSize = helper.getViewportSize,
+    searchFilterClassName = 'search-filter-box',
+    loading = 'loading',
+    reverseFlag = 'reversed';
 
   function noop() { }
 
@@ -57,7 +64,8 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
           extend(o, {
             _index: index,
             selected: some(selectedValue, function (val) {
-              if (val.value === value) {
+              if ('' + val.value === '' + value) {
+                val.value = value;
                 if (val.text !== text) val.text = text;
                 return true;
               }
@@ -68,6 +76,10 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
       })({ text: text, value: value }));
     });
     return a;
+  }
+
+  function getEvtTarget(evt) {
+    return evt.target || evt.srcElement;
   }
 
   function DropDownList(options) {
@@ -100,6 +112,8 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
         }
         return el;
       }(options.el, options.wrapper),
+      showClassName = 'show',
+      isSearchFilter = options.isSearchFilter === true,
       enableFilter = options.enableFilter === true,
       reserveInvalidValue = options.reserveInvalidValue === true,
       selectedData = dataAdapter(options.value, null, true),
@@ -114,13 +128,14 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
       splitter = function (splitter) {
         return isNullOrUndefinedOrEmpty(splitter) ? ',' : splitter;
       }(options.multipleValueSplitter),
+      showSelectedItem = options.showSelectedItem === true,//下拉列表显示已选项
       multiple = options.multiple === true,
       pagerAttrName = '__xdropdown_pagerinfo__',
       dropDownList, wrapperBox, headerBox, bodyBox, footerBox, ulBox, noResultBox, filterBox, iptFilter,
       modalBox = null,
       // 是否以父元素作为下拉选项显隐触发元素
       triggerEl = options.parentAsTrigger === true ? iptBox.parentNode : iptBox,
-      disableInputOverlay = options.disableInputOverlay === true,
+      disableInputOverlay = !isSearchFilter && options.disableInputOverlay === true,
       className = (function (className) {
         var a = !isNullOrUndefinedOrEmpty(className) && isString(className) ? className.split(' ') : [];
         if (disableInputOverlay) a.unshift('disable-input-overlay');
@@ -154,13 +169,13 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
       box.__xdropdown_trigger__ = iptBox;
       //分段加载下拉选项（当滚动至底部时触发）
       addEventListener(ulBox, 'scroll', function (evt) {
-        evt = evt || event;
-        var target = evt.target,
+        evt = evt || window.event;
+        var target = getEvtTarget(evt),
           data = target[pagerAttrName];
         data && (data = data.data);
         if (data && data.length > 0 && (function (sh, st, ch) {
-            return st + ch >= sh - 5;
-          })(target.scrollHeight, target.scrollTop, target.clientHeight)) {
+          return st + ch >= sh - 5;
+        })(target.scrollHeight, target.scrollTop, target.clientHeight)) {
           var ul = createElement('ul'), nodes;
           ul.innerHTML = getOptionsString(data);
           nodes = Array.prototype.slice.call(ul.childNodes);
@@ -172,10 +187,13 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
 
     function filterHandler(evt) {
       evt = evt || window.event;
-      var value = trim(evt.target.value).toLowerCase();
+      var value = trim(getEvtTarget(evt).value).toLowerCase();
       setOptionsContent(optionsData.filter(function (dataItem) {
         return !!(dataItem.text && dataItem.text.toLowerCase().indexOf(value) > -1);
       }), true);
+      if (hasClass(modalBox, reverseFlag)) {
+        positionBox(true);
+      }
     }
 
     function getOptionsData(data) {
@@ -220,6 +238,12 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
       return content && String(content) || '';
     }
 
+    /**
+     * 获取下拉列表内容
+     * @param {Object[]} data
+     * @param {Boolean} isFiltering 为true则不设置默认值，否则设置默认值
+     * @returns {String}
+     */
     function getOptionsString(data, isFiltering) {
       var str = [];
       if (isFiltering !== true && !some(data, function (item) { return item.selected === true; })) {
@@ -244,7 +268,11 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
         box && setStyleProperty(box, 'display', a.length === 0 ? 'block' : 'none');
         return a;
       })(filter(data, function (item) {
-        return item.selected !== true && item._invalid !== true && !isNullOrUndefined(item.value);
+        var flag = item._invalid !== true && !isNullOrUndefined(item.value);
+        if (!showSelectedItem) {
+          flag = item.selected !== true && flag;
+        }
+        return flag;
       })), function (option, index, data) {
         if (str.length > 100) {//默认只显示前100条记录，防止量过大时导致浏览器卡顿
           ulBox && (ulBox[pagerAttrName] = { data: data.slice(index) });
@@ -291,7 +319,7 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
     function getFooter() { return footerBox; }
     function getBody() { return bodyBox; }
 
-    function positionBox() {
+    function positionBox(isReversed) {
       var offset = getOffset(getStyle(triggerEl, 'display') === 'none' ? triggerEl.parentNode : triggerEl, true),
         isBody = offset.topIsBodyElement,
         scrollSize = function () {
@@ -300,7 +328,8 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
             left: isBody ? Math.max(htmlEl.scrollLeft, body.scrollLeft) : 0
           };
         }(),
-        ddbOffset = getOffset(dropDownList.parentNode, true),
+        box = dropDownList.parentNode,
+        ddbOffset = getOffset(box, true),
         position = {
           left: offset.left - scrollSize.left - ddbOffset.left + 'px',
           top: offset.top - scrollSize.top - ddbOffset.top + 'px',
@@ -309,11 +338,33 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
             forEach(o, function (value) { width += parseInt(value) || 0; });
             return width;
           }(getStyle(triggerEl, ['borderLeft', 'borderRight'])) + 'px'
-        };
+        },
+        viewHeight = !isReversed && getViewportSize()[1],
+        top;
       if (disableInputOverlay) {
-        var top = parseInt(getFunction(options.getOffsetTop).call(me, position));
+        top = parseInt(getFunction(options.getOffsetTop).call(me, position));
         if (isNaN(top)) top = triggerEl.offsetHeight;
         position.top = parseInt(position.top, 10) + top + 'px';
+      }
+      if (options.enableReversing) {
+        top = parseInt(position.top);
+        if (!isReversed) {
+          if (hasClass(box, reverseFlag)) {
+            isReversed = true;
+          }
+          if (!isReversed && top - 10 > viewHeight / 2 && dropDownList.offsetHeight + top > viewHeight) {
+            headerBox.parentNode.insertBefore(footerBox, headerBox);
+            headerBox.parentNode.insertBefore(bodyBox, headerBox);
+            if (filterBox) {
+              bodyBox.appendChild(filterBox);
+            }
+            addClass(box, reverseFlag);
+            isReversed = true;
+          }
+        }
+        if (isReversed) {
+          position.top = top - bodyBox.offsetHeight - footerBox.offsetHeight + 'px';
+        }
       }
       getFunction(options.onPosition).call(me, position);
       setCssText(dropDownList, position);
@@ -424,21 +475,24 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
     function clickHandler(evt) {
       evt = evt || window.event;
       evt.stopPropagation();
-      var target = evt.target, optionSelected = false;
+      var target = getEvtTarget(evt),
+        optionSelected = false,
+        index, itemData;
       do {
         if ((target.tagName || '').toUpperCase() === 'LI' && hasClass(target.parentNode.parentNode, bodyClassName)) {
           close();
+          removeClass(iptBox.parentNode, showClassName);
           optionSelected = true;
-          (function (index) {
-            var itemData = isNaN(index) ? {} : optionsData[index];
-            setOptionsData(itemData, 'selected', true);
-            getFunction(options.onSelected).call(me, index, itemData, optionsData);
-          })(parseInt(target.getAttribute(indexAttrName)));
+          index = parseInt(target.getAttribute(indexAttrName));
+          itemData = isNaN(index) ? {} : optionsData[index];
+          setOptionsData(itemData, 'selected', true);
+          getFunction(options.onSelected).call(me, index, itemData, optionsData);
           break;
         } else if (target === bodyBox) break;
         target = target.parentNode;
       } while (target);
-      if (!optionSelected && hasClass(evt.target, modalBoxClassName[0])) close();
+      target = getEvtTarget(evt);
+      if (!optionSelected && hasClass(target, modalBoxClassName[0])) close();
     }
 
     function show(evt) {
@@ -450,8 +504,8 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
       (function (className) {
         isString(className) && className !== '' && removeClass(iptBox.parentNode, className);
       })(options.loadingTipClassName);
+      addClass(iptBox.parentNode, showClassName);
       setStyleProperty(modalBox, 'display', 'block');
-      positionBox();
       (function (header, footer) {
         if (header) {
           header.innerHTML = getFunction(options.header).call(me, iptBox) || options.header || '';
@@ -460,6 +514,7 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
           footer.innerHTML = getFunction(options.footer).call(me, iptBox) || options.footer || '';
         }
       })(getHeader(), getFooter());
+      positionBox();
       getFunction(options.onShow).call(me, iptBox, dropDownList);
       addEventListener(modalBox, 'click', clickHandler);
       if (options.fixed !== true) {
@@ -469,11 +524,13 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
     }
 
     addClass(iptBox.parentNode, className);
-    addEventListener(triggerEl, 'click', function (evt) {
-      evt = evt || window.event;
-      evt.stopPropagation();
-      show(evt);
-    });
+    if (options.disableClickEventListener !== true) {
+      addEventListener(triggerEl, 'click', function (evt) {
+        evt = evt || window.event;
+        evt.stopPropagation();
+        show(evt);
+      });
+    }
     iptBox.value = getText(true);
 
     extend(me, {
@@ -513,231 +570,340 @@ xHelper.registerNamespace('ui.widget', xHelper).DropDownList = function (helper)
     dataAdapter: dataAdapter
   });
 
-  return DropDownList;
-}(xHelper);
+  helper.registerNamespace('ui.widget', helper).DropDownList = DropDownList;
 
-xHelper.initDropDownList = function (nodes, options) {
-  var isFunction = xHelper.isFunction,
-    hasClass = xHelper.hasClass,
-    addClass = xHelper.addClass,
-    removeClass = xHelper.removeClass,
-    getChildren = xHelper.getChildren,
-    isNullOrUndefined = xHelper.isNullOrUndefined,
-    isArray = xHelper.isArray,
-    isString = xHelper.isString,
-    isObject = xHelper.isObject,
-    isHTMLElement = xHelper.isHTMLElement,
-    some = xHelper.some,
-    forEach = xHelper.forEach,
-    filter = xHelper.filter,
-    extend = xHelper.extend,
-    getCamelCase = xHelper.getCamelCase,
-    createElement = xHelper.createElement,
-    addEventListener = xHelper.addEventListener,
-    DropDownList = xHelper.ui.widget.DropDownList,
-    tagClassName = 'tag',
-    tagsItemClassName = 'tags-item',
-    closeClassName = 'x-icon-close',
-    valueAttrName = 'data-value',
-    loadingTipClassName = 'loading',
-    getTagTemplate = function (enableCloseBtn) {
-      var str = '<span class="' + tagClassName + '" ' + valueAttrName + '="{{ html:value }}">{{ text }}';
-      if (enableCloseBtn) str += '<i class="' + closeClassName + '"></i>';
-      return str + '</span>';
-    },
-    placeHolder = '<span class="' + tagClassName + ' empty-placeholder">{{ text }}</span>',
-    refName = '__xdropdown__';
-
-  !isObject(options) && (options = {});
-
-  function noop () {}
-  function getFunction (fn) { return isFunction(fn) && fn || noop; }
-
-  forEach(nodes, function (el) {
-    if (!isHTMLElement(el)) return;
-    var thisOptions = extend(getFunction(options.getOptions)(el) || {}, (function (o) {
-        forEach(el.attributes, function (attr) {
-          var name = attr.name;
-          if (isString(name) && name.indexOf('data-') === 0) {
-            o[getCamelCase(name.substring(5))] = attr.value === 'true' ? true : attr.value;
-          }
-        });
-        return o;
-      })({})),
-      optionsData = function (data) { return isArray(data) && data || [];  }(thisOptions.optionsData),
-      onChange = getFunction(thisOptions.onChange),
-      onShow = getFunction(thisOptions.onShow),
-      onSelected = getFunction(thisOptions.onSelected),
-      itemTemplate = getFunction(thisOptions.itemTemplate),
-      onPosition = getFunction (thisOptions.onPosition),
-      onReload = getFunction(thisOptions.onReload),
-      onHide = getFunction(thisOptions.onHide),
-      enableFilter = hasClass(el, 'enable-filter'),
-      enableTags = hasClass(el, 'enable-tags'),
-      enableCloseBtn = hasClass(el, 'enable-close-btn'),
-      selectLike = hasClass(el, 'select-like'),
-      dropDownArrowClassName = 'dropdown-arrow',
-      value = thisOptions.value || el.value || thisOptions.defaultSelectedValue || '',
-      multiple = hasClass(el, 'multiple'),
-      noOptionText = isString(thisOptions.noOptionText) ? thisOptions.noOptionText :
-        isString(options.noOptionText) ? options.noOptionText : '没有结果',
-      processingFlag = 'processing';
-
-    if (el[refName]) {
-      getFunction(thisOptions.instanceExistsHandler).call(el[refName], el, thisOptions);
-      return;
-    }
-    if (selectLike) {
-      enableTags = true;
-      thisOptions.className = function (className) {
-        return 'select-like-box' + (className ? ' ' + className : '');
-      }(thisOptions.className);
-    }
-
-    function getPlaceHolder() {
-      return placeHolder.replace(/{{ *text *}}/g, el.getAttribute('placeholder') || '&nbsp;');
-    }
-
-    function appendTagEl(template, dropDownList) {
-      el.parentNode.insertBefore((function (div) {
-        div.innerHTML = template;
-        getFunction(thisOptions.tagFormatter).call(dropDownList, div.childNodes[0]);
-        return div.childNodes[0];
-      })(createElement('div')), el);
-    }
-
-    function showTagsHandler(dropDownList) {
-      if (!enableTags) return;
-      var parentNode = el.parentNode,
-        children = getChildren(parentNode),
-        selectedData = dropDownList.getSelectedData();
-      addClass(parentNode, tagsItemClassName);
-      forEach(children, function (elTag) {
-        if (hasClass(elTag, tagClassName)) parentNode.removeChild(elTag);
-      });
-      selectLike && (function (dom) {
-        if (isArray(dom) && dom.length) return;
-        parentNode.appendChild(createElement('i', { 'class': dropDownArrowClassName }));
-      })(getChildren(parentNode, dropDownArrowClassName));
-      if ((!isArray(selectedData) || selectedData.length === 0) &&
-        !some(getChildren(parentNode), function (el) { return hasClass(el, tagClassName); })) {
-        appendTagEl(getPlaceHolder(), dropDownList);
-      } else {
-        forEach(selectedData, function (item) {
-          appendTagEl(dropDownList.interpolate(item, getTagTemplate(enableCloseBtn)), dropDownList);
-        });
-      }
-    }
-
-    function removeTag(target) {
-      var tag = target.parentNode,
-        value = tag.getAttribute(valueAttrName);
-      if (!isNullOrUndefined(value)) {
-        filter(dropDownList.getOptionsData(), function (item) {
-          (item.value === value) && dropDownList.setOptionsData(item, 'selected', false);
-        });
-      }
-      tag.parentNode && tag.parentNode.removeChild(tag);
-    }
-
-    function removeTagHandler(dropDownList) {
-      addEventListener(dropDownList.getHeader(), 'click', function (evt) {
-        evt = evt || event;
-        evt.stopPropagation();
-        var target = evt.target;
-        if (hasClass(target, closeClassName)) {
-          removeTag(target);
-          dropDownList.close();
-          dropDownList.el.parentNode.click();
-        }
-      });
-    }
-
-    var dropDownList = new DropDownList(extend(thisOptions, {
-      el: el,
-      value: value,
-      multiple: multiple,
-      // wrapper: 'span',
-      loadingTipClassName: loadingTipClassName,
-      multipleValueSplitter: ',',
-      optionsData: optionsData,
-      noOptionText: noOptionText,
-      enableFilter: enableFilter,
-      // reserveInvalidValue: true,//保留不在下拉别表中的值
-      itemTemplate: function (itemData) {
-        return itemTemplate.call(this, itemData) || itemData.text;
+  extend(helper, function (refName) {
+    return {
+      getDropDownList: function (input) {
+        return input && input[refName];
       },
-      header: function (inputEl) { return '<input type="text" value="' + inputEl.value + '" class="x-form-control">' },
-      onShow: function (inputEl, dropDownListEl) {
-        if (enableTags) {
-          var me = this,
-            header = me.getHeader();
-          header.innerHTML = '';
-          addClass(header, tagsItemClassName);
-          forEach(filter(getChildren(el.parentNode), function (node) {
-            return hasClass(node, tagClassName);
-          }), function (node) {
-            var clonedNode = node.cloneNode(true);
-            header.appendChild(clonedNode);
-          });
-        }
-        onShow.call(this, inputEl, dropDownListEl);
-      },
-      onChange: function (newValue, oldValue) {
-        showTagsHandler(this);
-        onChange.call(this, newValue, oldValue);
-      },
-      onSelected: function (index, itemData, optionsData) {
-        onSelected.call(this, index, itemData, optionsData);
-      },
-      onPosition: function (position) { onPosition.call(this, position); },
-      onReload: function () {
-        removeTagHandler(this);
-        onReload.call(this);
-      },
-      onHide: function () { onHide.call(this); },
-      onBeforeShow: function (evt) {
-        if (!evt) return;
-        evt.stopPropagation();
-        if (hasClass(evt.target, closeClassName)) {
-          return thisOptions.disableReloadOnDel !== true;
-        }
-      }
-    }));
-    showTagsHandler(dropDownList);
-    el[refName] = dropDownList;
-    addEventListener(el.parentNode, 'click', function (evt) {
-      evt = evt || event;
-      evt.stopPropagation();
-      var target = evt.target;
-      if (hasClass(target, closeClassName)) {
-        removeTag(target);
-      } else if (!hasClass(el, processingFlag)) {
-        var isPromise = false;
-        addClass(el, processingFlag);//防止重复点击处理
-        if (isFunction(thisOptions.clickHandler)) {
-          addClass(el.parentNode, loadingTipClassName);
-          var result = thisOptions.clickHandler.call(dropDownList);
-          if (result === false) {//返回false表示不显示下拉列表框
-            dropDownList.close();
-            removeClass(el.parentNode, loadingTipClassName);
-            removeClass(el, processingFlag);
+      /**
+       * @param {Array(HTMLElement)} nodes
+       * @param {Object} options
+       * {
+       *   {Function} getOptions({HTMLElment} el) returns {
+       *       {Function} onChange,
+       *       {Function} onShow,
+       *       {Function} onSelected,
+       *       {Function} itemTemplate,
+       *       {Function} onPosition,
+       *       {Function} onReload,
+       *       {Function} onHide,
+       *       ......
+       *     }
+       * }
+       */
+      initDropDownList: function (nodes, options) {
+        var tagClassName = 'tag',
+          tagsItemClassName = 'tags-item',
+          closeClassName = 'x-icon-close',
+          valueAttrName = 'data-value',
+          loadingTipClassName = loading,
+          getTagTemplate = function (enableCloseBtn) {
+            var str = '<span class="' + tagClassName + '" ' + valueAttrName + '="{{ html:value }}">{{ text }}';
+            if (enableCloseBtn) str += '<i class="' + closeClassName + '"></i>';
+            return str + '</span>';
+          },
+          placeHolder = '<span class="' + tagClassName + ' empty-placeholder">{{ text }}</span>';
+
+        !isObject(options) && (options = {});
+
+        function noop () {}
+        function getFunction(fn) { return isFunction(fn) && fn || noop; }
+        function toBoolean(v) { return v === 'true' ? true : false; }
+
+        forEach(nodes, function (el) {
+          if (!isHTMLElement(el)) return;
+          var thisOptions = extend(getFunction(options.getOptions)(el) || {}, (function (o) {
+              forEach(el.attributes, function (attr) {
+                var name = attr.name, value = attr.value;
+                if (isString(name) && name.indexOf('data-') === 0) {
+                  o[getCamelCase(name.substring(5))] = /^(true|false)$/i.test(value) ? toBoolean(value) : value;
+                }
+              });
+              return o;
+            })({})),
+            optionsData = function (data) { return isArray(data) && data || [];  }(thisOptions.optionsData),
+            onChange = getFunction(thisOptions.onChange),
+            onShow = getFunction(thisOptions.onShow),
+            onSelected = getFunction(thisOptions.onSelected),
+            itemTemplate = getFunction(thisOptions.itemTemplate),
+            onPosition = getFunction (thisOptions.onPosition),
+            onReload = getFunction(thisOptions.onReload),
+            onHide = getFunction(thisOptions.onHide),
+            isSearchFilter = hasClass(el, 'search-filter'),
+            enableFilter = !isSearchFilter && hasClass(el, 'enable-filter'),
+            enableTags = !isSearchFilter && hasClass(el, 'enable-tags'),
+            enableCloseBtn = !isSearchFilter && hasClass(el, 'enable-close-btn'),
+            selectLike = !isSearchFilter && hasClass(el, 'select-like'),
+            dropDownArrowClassName = 'dropdown-arrow',
+            value = thisOptions.value || el.value || thisOptions.defaultSelectedValue || '',
+            multiple = !isSearchFilter && hasClass(el, 'multiple'),
+            noOptionText = isString(thisOptions.noOptionText) ? thisOptions.noOptionText :
+              isString(options.noOptionText) ? options.noOptionText : '没有结果',
+            processingFlag = 'processing',
+            xFormControlFlag = 'x-form-control';
+
+          if (el[refName]) {
+            getFunction(thisOptions.instanceExistsHandler).call(el[refName], el, thisOptions);
             return;
-          } else if (result && xHelper.isPromise(result)) {
-            isPromise = true;
-            result.then(function (data) {
-              dropDownList.show(evt);
-              dropDownList.setOptionsData(data);
-              removeClass(el, processingFlag);
+          }
+          (function () {
+            var className;
+            if (selectLike) {
+              enableTags = true;
+              className = 'select-like-box';
+            } else if (isSearchFilter) {
+              $.extend(thisOptions, {
+                isSearchFilter: true,
+                reserveInvalidValue: true,
+                showSelectedItem: true
+              });
+              className = searchFilterClassName;
+            }
+            if (className) {
+              thisOptions.className = function (klassName) {
+                return className + (klassName ? ' ' + klassName : '');
+              }(thisOptions.className);
+            }
+          })();
+
+          function getPlaceHolder() {
+            return placeHolder.replace(/{{ *text *}}/g, el.getAttribute('placeholder') || '&nbsp;');
+          }
+
+          function appendTagEl(template, dropDownList) {
+            el.parentNode.insertBefore((function (div) {
+              div.innerHTML = template;
+              getFunction(thisOptions.tagFormatter).call(dropDownList, div.childNodes[0]);
+              return div.childNodes[0];
+            })(createElement('div')), el);
+          }
+
+          function showTagsHandler(dropDownList) {
+            if (!enableTags) return;
+            var parentNode = el.parentNode,
+              children = getChildren(parentNode),
+              selectedData = dropDownList.getSelectedData();
+            addClass(parentNode, tagsItemClassName);
+            forEach(children, function (elTag) {
+              if (hasClass(elTag, tagClassName)) parentNode.removeChild(elTag);
+            });
+            selectLike && (function (dom) {
+              if (isArray(dom) && dom.length) return;
+              parentNode.appendChild(createElement('i', { 'class': dropDownArrowClassName }));
+            })(getChildren(parentNode, dropDownArrowClassName));
+            if ((!isArray(selectedData) || selectedData.length === 0) &&
+              !some(getChildren(parentNode), function (el) { return hasClass(el, tagClassName); })) {
+              appendTagEl(getPlaceHolder(), dropDownList);
+            } else {
+              forEach(selectedData, function (item) {
+                appendTagEl(dropDownList.interpolate(item, getTagTemplate(enableCloseBtn)), dropDownList);
+              });
+            }
+          }
+
+          function removeTag(target) {
+            var tag = target.parentNode,
+              value = tag.getAttribute(valueAttrName);
+            if (!isNullOrUndefined(value)) {
+              filter(dropDownList.getOptionsData(), function (item) {
+                (item.value === value) && dropDownList.setOptionsData(item, 'selected', false);
+              });
+            }
+            tag.parentNode && tag.parentNode.removeChild(tag);
+          }
+
+          function removeTagHandler(dropDownList) {
+            addEventListener(dropDownList.getHeader(), 'click', function (evt) {
+              evt = evt || window.event;
+              evt.stopPropagation();
+              var target = getEvtTarget(evt);
+              if (hasClass(target, closeClassName)) {
+                removeTag(target);
+                dropDownList.close();
+                dropDownList.el.parentNode.click();
+              }
             });
           }
-        }
-        if (!isPromise) {
-          dropDownList.show(evt);
-          removeClass(el, processingFlag);
-        }
+
+          function getHeaderInput(x) {
+            return getChildren(x.getHeader(), xFormControlFlag)[0];
+          }
+
+          function initSearchFilter(x) {
+            var timeoutId, val, pos, range,
+              input = getHeaderInput(x),
+              delayTime = 0,
+              emptyUsed = false;
+            //按指定间隔处理过滤数据，避免频繁处理请求
+            function filterHandler() {
+              if (timeoutId) clearTimeout(timeoutId);
+              timeoutId = setTimeout(function () {
+                delayTime = 100;
+                var def = getFunction(x.options.getFilteredData).call(x, val);
+                val = null;
+                if (isPromise(def)) {
+                  def.then(function (data) {
+                    x.setOptionsData(DropDownList.dataAdapter(data));
+                    if (isNullOrUndefined(val)) {
+                      timeoutId = null;
+                    } else {
+                      filterHandler();
+                    }
+                  });
+                }
+              }, delayTime);
+            }
+            if (input) {
+              forEach(getStyle(x.el, [
+                'fontSize',
+                'fontWeight',
+                'lineHeight',
+                'fontStyle',
+                'textAlign',
+                'padding'
+              ]), function (val, key) {
+                input.style[key] = val;
+              });
+              input.value = x.el.value;
+              val = input.value;
+              filterHandler();
+              forEach({
+                change: function (evt) {
+                  x.el.value = this.value;
+                  getFunction(x.options.onSearchFilterValChange).call(x, evt, this);
+                },
+                keyup: function () {
+                  var value = $.trim(this.value);
+                  if (val !== value) {
+                    val = value;
+                    if (val === '') {
+                      if (emptyUsed) return;
+                      emptyUsed = true;
+                    }
+                    if (!timeoutId) {
+                      filterHandler();
+                    }
+                  }
+                },
+                focus: function () {
+                  delayTime = 0;
+                  emptyUsed = false;
+                }
+              }, function (fn, evtName) {
+                var name = '_' + evtName + 'EvtHandler';
+                if (!input[name]) {
+                  input[name] = fn;
+                  addEventListener(input, evtName, fn);
+                }
+              });
+              pos = input.value.length;
+              if (input.setSelectionRange) {
+                input.focus();
+                input.setSelectionRange(pos, pos);
+              } else if (input.createTextRange) {
+                range = input.createTextRange();
+                range.collapse(true);
+                range.moveEnd('character', pos);
+                range.moveStart('character', pos);
+                range.select();
+              }
+            }
+          }
+
+          var dropDownList = new DropDownList(extend(thisOptions, {
+            el: el,
+            value: value,
+            multiple: multiple,
+            // wrapper: 'span',
+            loadingTipClassName: loadingTipClassName,
+            multipleValueSplitter: ',',
+            optionsData: optionsData,
+            noOptionText: noOptionText,
+            enableFilter: enableFilter,
+            disableClickEventListener: true,
+            // reserveInvalidValue: true,//保留不在下拉别表中的值
+            itemTemplate: function (itemData) {
+              return itemTemplate.call(this, itemData) || itemData.text;
+            },
+            header: function (inputEl) {
+              return '<input type="text" value="' + inputEl.value + '" class="' + xFormControlFlag + '" autocomplete="off">';
+            },
+            onShow: function (inputEl, dropDownListEl) {
+              var me = this,
+                header = me.getHeader();
+              if (enableTags) {
+                header.innerHTML = '';
+                addClass(header, tagsItemClassName);
+                forEach(filter(getChildren(el.parentNode), function (node) {
+                  return hasClass(node, tagClassName);
+                }), function (node) {
+                  var clonedNode = node.cloneNode(true);
+                  header.appendChild(clonedNode);
+                });
+              }
+              if (isSearchFilter) initSearchFilter(me);
+              onShow.call(this, inputEl, dropDownListEl);
+            },
+            onChange: function (newValue, oldValue) {
+              showTagsHandler(this);
+              onChange.call(this, newValue, oldValue);
+            },
+            onSelected: function (index, itemData, optionsData) {
+              onSelected.call(this, index, itemData, optionsData);
+            },
+            onPosition: function (position) { onPosition.call(this, position); },
+            onReload: function () {
+              removeTagHandler(this);
+              onReload.call(this);
+            },
+            onHide: function () { onHide.call(this); },
+            onBeforeShow: function (evt) {
+              if (!evt) return;
+              evt.stopPropagation();
+              if (hasClass(getEvtTarget(evt), closeClassName)) {
+                return thisOptions.disableReloadOnDel !== true;
+              }
+            }
+          }));
+          showTagsHandler(dropDownList);
+          el[refName] = dropDownList;
+          addEventListener(el.parentNode, 'click', function (evt) {
+            evt = evt || window.event;
+            evt.stopPropagation();
+            var target = getEvtTarget(evt);
+            if (hasClass(target, closeClassName)) {
+              removeTag(target);
+            } else if (!hasClass(el, processingFlag)) {
+              var isProm = false;
+              addClass(el, processingFlag);//防止重复点击处理
+              if (isFunction(thisOptions.clickHandler)) {
+                addClass(el.parentNode, loadingTipClassName);
+                var result = thisOptions.clickHandler.call(dropDownList);
+                if (result === false) {//返回false表示不显示下拉列表框
+                  dropDownList.close();
+                  removeClass(el.parentNode, loadingTipClassName);
+                  removeClass(el, processingFlag);
+                  return;
+                } else if (result && isPromise(result)) {
+                  isProm = true;
+                  result.then(function (data) {
+                    dropDownList.setOptionsData(data);
+                    dropDownList.show(evt);
+                    removeClass(el, processingFlag);
+                  });
+                }
+              }
+              if (!isProm) {
+                dropDownList.show(evt);
+                removeClass(el, processingFlag);
+              }
+            }
+          });
+          removeTagHandler(dropDownList);
+        });
       }
-    });
-    removeTagHandler(dropDownList);
-  });
-};
+    };
+  }('__xdropdown__'));
+}(window, xHelper);

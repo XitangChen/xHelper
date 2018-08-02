@@ -1,27 +1,31 @@
 /**
  * 常用方法工具辅助类
- * Author: chenxitang@uinnova.com
+ * Author: Xitang Chen
  * Created Date: 2017-07-28
- * Last Modified: 2017-08-30
+ * Last Modified: 2018-02-07
  */
-;!function (_helper, window, undefined) {
+!function (window, undefined) {
   'use strict';
 
   var _hasOwn = Object.prototype.hasOwnProperty,
     _slice = Array.prototype.slice,
-    helper = xHelper;
+    toStr = Object.prototype.toString,
+    helper = xHelper,
+    loadStylesheet;
 
   function xHelper(o) {
-    if (!(this instanceof xHelper)) { return new xHelper(o); }
+    if (this.toString() !== '[object xHelper]') return new xHelper(o);
     this._ = o;
   }
 
+  function noop() {}
+
   /**
    * 扩展对象属性
-   * @param deep: Boolean 为true则进行深拷贝。默认为浅拷贝
-   * @param target: Object 复制到的目标对象
-   * @param sources: Object 拷贝来源对象。可以为多个
-   * @returns Object
+   * @param {Boolean} deep: 为true则进行深拷贝。默认为浅拷贝
+   * @param {Object} target: 复制到的目标对象
+   * @param {Object} sources: 拷贝来源对象。可以为多个
+   * @returns {Object}
    */
   function extend(deep, target, sources) {
     var args = arguments,
@@ -29,7 +33,7 @@
       _isObject = function (o) {
         return isObject(o) &&
           !some(['Boolean', 'Number', 'String', 'Function', 'RegExp', 'Symbol', 'Date'], function (type) {
-            var type = window[type];
+            type = window[type];
             return type && (o instanceof type);
           });
       },
@@ -62,8 +66,8 @@
 
   /**
    * 注册命名空间
-   * @param namespace: String
-   * @param context: Object 检测的上下文
+   * @param {String} namespace
+   * @param {Object} context: 检测的上下文
    * @returns {Object}
    */
   function registerNamespace(namespace, context) {
@@ -81,10 +85,10 @@
 
   /**
    * 检测传入的命名控件是否存在
-   * @param namespace String
-   * @param context: Object 检测的上下文
-   * @param callback: Function (exists, context, namespace)
-   * @returns {object} { exists: exists, context: context }
+   * @param {String} namespace
+   * @param {Object} context: 检测的上下文
+   * @param {Function} callback: (exists, context, namespace)
+   * @returns {object} { exists, context }
    */
   function checkNamespace(namespace, context, callback) {
     var exists = false;
@@ -117,16 +121,18 @@
   }
 
   /**
-   * 获取制定元素的子元素
-   * @param el: HTMLElement
-   * @param indexOrClassName: Number / String 为Number，表示获取制定索引处的子元素；为String，则匹配元素的className
-   * @returns Array(HTMLElement)
+   * 获取指定元素的子元素
+   * @param {HTMLElement} el
+   * @param {Number/String} indexOrClassName: 为Number，表示获取制定索引处的子元素；为String，则匹配元素的className
+   * @returns {HTMLElement[]}
    */
   function getChildren(el, indexOrClassName) {
     if (!el) return [];
     var index = isNumber(indexOrClassName) ? indexOrClassName : null,
       className = index === null && !isNullOrUndefinedOrEmpty(indexOrClassName) ? trim(String(indexOrClassName)) : null;
-    return filter(filter(el.childNodes, function (child) { return isHTMLElement(child); }), function (child, idx) {
+    return filter(filter(el.childNodes, function (child) {
+      return isHTMLElement(child);
+    }), function (child, idx) {
       if (index !== null) {
         return index === idx;
       } else if (!isNullOrUndefinedOrEmpty(className)) {
@@ -137,10 +143,55 @@
     });
   }
 
+  function getArrayFromStrSplitByEmpty(str, allowEmpty) {
+    str = !isNullOrUndefinedOrEmpty(str) && ('' + str).split(' ') || [];
+    if (allowEmpty !== true) {
+      str = filter(str, function (item) { return item !== ''; });
+    }
+    return str;
+  }
+
+  /**
+   * 获取指定元素的所有父元素，当存在className时，则返回所有符合样式类的父元素
+   * @param {HTMLElement} el
+   * @param {String/Array(String)} className
+   * @param {Boolean} onlyOne 为true则返回第一个符合条件的父元素
+   * @returns {Array}
+   */
+  function getParents(el, className, onlyOne) {
+    var a = [];
+    if (className) {
+      if (isString(className)) className = getArrayFromStrSplitByEmpty(className);
+      if (!isArray(className)) className = null;
+    }
+    el = el && el.parentNode;
+    while (el) {
+      var flag = true;
+      if (className && !hasClass(el, className)) flag = false;
+      if (flag) {
+        a.push(el);
+        if (onlyOne === true) break;
+      }
+      el = el.parentNode;
+    }
+    return a;
+  }
+
+  /**
+   * 返回符合指定样式类的元素（或指定元素的父元素）
+   * @param {HTMLElement} el
+   * @param {String/Array(String)} className 为数组时，数组各项的关系为And
+   * @returns {HTMLElement}
+   */
+  function closest(el, className) {
+    if (!el || !className || hasClass(el, className)) return el;
+    return getParents(el, className, true)[0];
+  }
+
   /**
    * 获取元素在页面中的偏移值
-   * @param el: HTMLElement
-   * @param excludingScrollTop: Boolean，为true，则减去各层级元素的scrollTop值
+   * @param {HTMLElement} el
+   * @param {Boolean} excludingScrollTop: 为true，则减去各层级元素的scrollTop值
    * @returns {{left: number, top: number, topIsBodyElement: boolean}}
    * topIsBodyElement返回true，则表示顶层元素为body，否则为其它position为fixed的html元素
    */
@@ -167,7 +218,7 @@
   }
 
   function trim(str) {
-    if (str) str = ('' + str).replace(/^\s+|\s+$/g, '');
+    if (str) str = ('' + str).replace(/^\s+/g, '').replace(/\s+$/g, '');
     return str;
   }
 
@@ -177,7 +228,7 @@
     div.appendChild(document.createTextNode(s));
     return div.innerHTML.replace(/['"]/g, function (m) {
       switch (m) {
-        case "'": return '&#39;';
+        case '\'': return '&#39;';
         case '"': return '&#34;';
       }
       return m;
@@ -217,8 +268,8 @@
 
   /**
    * 获取页面最终的合成样式
-   * @param el: HTMLElement
-   * @param attrName: String/Array(String)
+   * @param {HTMLElement} el
+   * @param {String/String[]} attrName
    * @returns {String/Object}
    */
   function getStyle(el, attrName) {
@@ -241,9 +292,9 @@
 
   /**
    * 设置元素的style值
-   * @param el: HTMLElement
-   * @param cssOption: String/Object
-   * @returns HTMLElement
+   * @param {HTMLElement} el
+   * @param {String/Object} cssOption
+   * @returns {HTMLElement}
    */
   function setCssText(el, cssOption) {
     if (!el || !cssOption || !isHTMLElement(el)) return el;
@@ -258,8 +309,9 @@
           }
           return o;
         }(el.style.cssText.split(';')),
-        a = [];
-      for (var key in cssOption) {
+        a = [],
+        key;
+      for (key in cssOption) {
         var _key = getKebabCase(trim(key));
         if (_key !== '' && hasOwnProp(cssOption, key)) {
           var value = cssOption[key];
@@ -267,7 +319,7 @@
           else o[_key] = cssOption[key];
         }
       }
-      for (var key in o) {
+      for (key in o) {
         key && hasOwnProp(o, key) && a.push([key, o[key]].join(':'));
       }
       el.style.cssText = a.join(';');
@@ -277,12 +329,12 @@
 
   /**
    * 添加只能订内容的style元素
-   * @param cssString: String/Object
+   * @param {String/Object} cssString
    */
   function addStyle(cssString) {
-    var doc = window.document,
-      style = doc.createElement("style");
-    style.setAttribute("type", "text/css");
+    var doc = document,
+      style = doc.createElement('style');
+    style.setAttribute('type', 'text/css');
     if (!isString(cssString) && isObject(cssString)) {
       cssString = function (o) {
         var a = [];
@@ -300,7 +352,7 @@
       var cssText = doc.createTextNode(cssString);
       style.appendChild(cssText);
     }
-    var heads = doc.getElementsByTagName("head");
+    var heads = doc.getElementsByTagName('head');
     if (heads.length) heads[0].appendChild(style);
     else doc.documentElement.appendChild(style);
   }
@@ -321,8 +373,11 @@
   }
 
   function forEach(a, callback) {
-    if (isArray(a) && Array.prototype.forEach) a.forEach(callback);
-    else {
+    if (isArray(a) && Array.prototype.forEach) {
+      a.forEach(function (item) {
+        return callback.apply(item, _slice.call(arguments));
+      });
+    } else {
       if (isArray(a)) {
         for (var i = 0, length = a.length; i < length; i++) { callback(a[i], i, a); }
       } else if (isObject(a)) {
@@ -405,16 +460,16 @@
 
   /**
    * 数组去重
-   * @param a:Array
-   * @param enableSorting: Boolean，为true，则现对数组排序再去重
-   * @param  notEqualComparator: Function (currentVal, existedVal, enableSorting)，返回true表示不相等
+   * @param {Array} a
+   * @param {Boolean} enableSorting: 为true，则现对数组排序再去重
+   * @param {Function} notEqualComparator: (currentVal, existedVal, enableSorting)，返回true表示不相等
    * @returns {*}
    */
   function unique(a, enableSorting, notEqualComparator) {
     if (!(isArray(a) && a.length)) return a;
     var newA = [], o = {},
-      enableSorting = enableSorting === true,
       flag = notEqualComparator && isFunction(notEqualComparator);
+    enableSorting = enableSorting === true;
     if (enableSorting) {
       a.sort();
       newA.push(a[0]);
@@ -442,10 +497,16 @@
     return newA;
   }
 
+  /**
+   * 获取元素/对象的class属性值组成的对象
+   * @param {HTMLElement/Object} el: 具有class属性的元素/对象
+   * @returns {{}}: { className1: true, className: true, className3: false }
+   */
   function getClassObject(el) {
     var o = {},
-      a = el && isHTMLElement(el) && el.getAttribute('class');
-    forEach(a && a.split(' ') || [], function (className) {
+      key = 'class',
+      a = el && (isHTMLElement(el) ? el.getAttribute(key) : el[key]);
+    forEach(getArrayFromStrSplitByEmpty(a), function (className) {
       if (className !== '') o[className] = true;
     });
     return o;
@@ -453,7 +514,7 @@
 
   /**
    * 返回class属对象组成成的以空格分割的类名
-   * @param o: 2Object { className1: true, className: true, className3: false }
+   * @param {Object} o: { className1: true, className: true, className3: false }
    * @returns {String}
    */
   function getClassNameFromClassObject(o) {
@@ -464,9 +525,9 @@
 
   /**
    * 删除制定元素的CSS样式类
-   * @param el: HTMLElement
-   * @param className: String / Array(String)
-   * @returns HTMLElement
+   * @param {HTMLElement} el
+   * @param {String/Array(String)} className
+   * @returns {HTMLElement}
    */
   function removeClass(el, className) {
     if (isHTMLElement(el)) {
@@ -482,9 +543,9 @@
 
   /**
    * 添加CSS样式类至制定元素
-   * @param el: HTMLElement
-   * @param className: String / Array(String)
-   * @returns HTMLElement
+   * @param {HTMLElement} el
+   * @param {String/Array(String)} className
+   * @returns {HTMLElement}
    */
   function addClass(el, className) {
     if (isHTMLElement(el)) {
@@ -498,20 +559,25 @@
 
   /**
    * 判断元素是否已添加指定样式类名
-   * @param el: HTMLElement
-   * @param className: String
-   * @returns Boolean
+   * @param {HTMLElement} el
+   * @param {String/Array(String)} className: 为数组时数组各项为and关系
+   * @returns {Boolean}
    */
   function hasClass(el, className) {
     var o = getClassObject(el);
-    return o[className] === true;
+    if (isArray(className)) {
+      return !some(className, function (n) {
+        return o['' + n] !== true;
+      });
+    }
+    return o['' + className] === true;
   }
 
   /**
    * 在样式类名前添加点号
-   * @param className: String/Array(String)
-   * @param splitter: String 当className为数组时，串合各项的分隔符，默认为空字符串
-   * @returns String
+   * @param {String/Array(String)} className
+   * @param {String} splitter: 当className为数组时，串合各项的分隔符，默认为空字符串
+   * @returns {String}
    */
   function dotWithClassName(className, splitter) {
     var handler = function (className) {
@@ -527,7 +593,7 @@
   }
 
   function isNullOrUndefined(o) {
-    return o === undefined || o === null || typeof o === 'unknown';
+    return o === undefined || o === null || typeof o === 'unknown';// eslint-disable-line
   }
 
   function isNullOrUndefinedOrEmpty(o) {
@@ -542,8 +608,8 @@
 
   /**
    * 判断对象是否为指定类型
-   * @param o: Object
-   * @param type: String/Function
+   * @param {Object} o
+   * @param {String/Function} type
    * @returns {Boolean}
    */
   function isType(o, type) {
@@ -560,25 +626,25 @@
   }
 
   function isObject(o) {
-    return o !== null && o instanceof Object;// typeof o === 'object';
+    return o !== null && o instanceof Object;
   }
 
   function isWindow(obj) {
-    return obj != null && obj === obj.window;
+    return !isNullOrUndefined(obj) && obj === obj.window;
   }
 
   function isPlainObject(obj) {
     var key;
-    if (!obj || ({}).toString.call(obj) !== '[object Object]' || obj.nodeType || isWindow( obj ) ) {
+    if (!obj || ({}).toString.call(obj) !== '[object Object]' || obj.nodeType || isWindow(obj)) {
       return false;
     }
-    if ( obj.constructor &&
-      !_hasOwn.call( obj, "constructor" ) &&
-      !_hasOwn.call( obj.constructor.prototype || {}, "isPrototypeOf" ) ) {
+    if (obj.constructor &&
+      !_hasOwn.call(obj, 'constructor') &&
+      !_hasOwn.call(obj.constructor.prototype || {}, 'isPrototypeOf')) {
       return false;
     }
-    for ( key in obj ) {}
-    return key === undefined || _hasOwn.call( obj, key );
+    for (key in obj) { } // eslint-disable-line
+    return key === undefined || _hasOwn.call(obj, key);
   }
 
   function isEmptyObject(obj) {
@@ -605,7 +671,7 @@
 
   function isArray(o) {
     if (Array.isArray) return Array.isArray(o);
-    return Object.prototype.toString.call(o) === '[object Array]';
+    return toStr.call(o) === '[object Array]';
   }
 
   function isPromise(o) {
@@ -617,7 +683,7 @@
 
   function Deferred() {
     var STATUS = ['pending', 'resolved', 'rejected'], status = STATUS[0], thens = [], args = [], promise,
-      thenPromise, thenPromises = [],
+      thenPromise, thenPromises = [], Promise = window.Promise,
       hasPromise = typeof Promise === 'function' && isPromise(Promise),
       o = {
         resolve: function () {
@@ -647,13 +713,14 @@
         done: function (resolve) {
           return this.then(resolve);
         },
-        catch: function (rejected) {
-          return this.then(undefined, rejected);
-        },
         promise: function () {
           return { then: this.then, done: this.done };
         }
       };
+    // 此种方式可避免低版本IE报错
+    o['catch'] = function (rejected) {
+      return this.then(undefined, rejected);
+    };
     function run(args) {
       if (hasPromise) {
         if (!promise) thenPromise = promise = Promise[status === STATUS[2] ? 'reject' : 'resolve'].apply(Promise, args);
@@ -687,76 +754,8 @@
     return dom;
   }
 
-  /**
-   * 以网页元素方式加载文件
-   * @param aSrc: Array(String), [key, value] 元素的src/href属性值
-   * @param tagName: String, 元素标签名
-   * @param oOtherAttributes: Object, 需要设置的元素属性
-   * @param callback: Function, 加载完成后调用的函数
-   * @param moreArgs: (*), 更多的参数，作为callback调用时的参数
-   */
-  function loadFile(aSrc, tagName, oOtherAttributes, callback, moreArgs) {
-    var _arg = arguments,
-      args = _slice.call(_arg),
-      aSrc = args.shift(),
-      tagName = args.shift(),
-      oAttributes = args.shift(),
-      callback = function () {},
-      doc = document,
-      elm = doc.createElement(tagName);
-    if (args.length > 0) callback = args.shift();
-    for (var key in oAttributes) {
-      _hasOwn.call(oAttributes, key) && elm.setAttribute(key, oAttributes[key]);
-    }
-    if (elm.readyState) {
-      elm.onreadystatechange = function () {
-        if (some(['loaded', 'complete'], function (value) { return elm.readyState === value; })) {
-          elm.onreadystatechange = null;
-          callback.apply(_arg, args);
-        }
-      }
-    } else {
-      if (!(tagName.toLowerCase() === 'link' && (function (src, ua) {//Hack for Safari 6-
-          if (window.openDatabase && ua.indexOf("safari") > -1 && ua.indexOf("chrome") === -1 &&
-            ua.indexOf("version") > -1 && parseFloat(ua.match(/version\/([\d.]+)/)[1]) < 6) {
-            var timeout = 60000, elapsedTime = 0, intervalTime = 50,
-              styleSheets = document.styleSheets,
-              curCSSNum = styleSheets.length,
-              href = (function (href, pathname) {
-                return (src.indexOf('://') !== -1 ? src : ((src.indexOf('/') === 0
-                  ? href.substring(0, href.length - pathname.length)
-                  : href.substring(0, href.lastIndexOf('/') + 1)) + src)).toLowerCase();
-              })(location.href, location.pathname),
-              timer = setInterval(function () {
-                if (styleSheets.length > curCSSNum) {
-                  some(styleSheets, function (styleSheet) {
-                    if (styleSheet.href.toLowerCase() === href) {
-                      clearInterval(timer);
-                      callback.apply(_arg, args);
-                      return true;
-                    }
-                  });
-                  curCSSNum = styleSheets.length;
-                  elapsedTime += intervalTime;
-                  if (elapsedTime > timeout) clearInterval(timer);
-                }
-              }, intervalTime);
-            return true;
-          }
-          return false;
-        })(aSrc[1], navigator.userAgent.toLowerCase()))) {
-        if (elm.addEventListener) { addEventListener(elm, 'load', function () { callback.apply(_arg, args); }); }
-        else elm.onload = function () { callback.apply(_arg, args); };
-      }
-    }
-    elm.setAttribute(aSrc[0], aSrc[1]);
-    var heads = doc.getElementsByTagName("head");
-    if (heads.length) heads[0].appendChild(elm);
-    else doc.documentElement.appendChild(elm);
-  }
-
   function loadIframe(src, options) {
-    options = options || {}
+    options = options || {};
     var defer = Deferred(),
       args = _slice.call(arguments),
       iframe = createElement('iframe', getFunction(options.getProperties)() || {
@@ -773,8 +772,8 @@
           iframe.onreadystatechange = null;
           defer.resolve();
         }
-      }
-    } else iframe.onload = function () { defer.resolve(); }
+      };
+    } else iframe.onload = function () { defer.resolve(); };
     defer.then(function () { getFunction(options.onLoad).apply(iframe, args); });
     iframe.setAttribute('src', src);
     getFunction(options.onInit).apply(iframe, args);
@@ -783,31 +782,95 @@
 
   /**
    * 以script元素加载制定的js文件至页面
-   * @param jsSrc: String
-   * @param callback: Function
+   * @param {String} jsSrc
+   * @param {Function} callback
+   * @param {Object} oMoreAttributes 更多的属性值设置
+   * @returns {HTMLScriptElement}
    */
-  function loadScript(jsSrc, callback) {
-    var a = _slice.call(arguments),
-      src = a.shift();
-    a.splice(0, 0, ['src', src], 'script', { type: 'text/javascript' });
-    loadFile.apply(arguments, a);
+  function loadScript(jsSrc, callback, oMoreAttributes) {
+    var script = document.createElement('script'),
+      heads = document.getElementsByTagName('head');
+    script.type = 'text/javascript';
+    script.charset = 'utf-8';
+    script.src = jsSrc;
+    oMoreAttributes && forEach(oMoreAttributes, function (val, key) {
+      if (key.toLowerCase() !== 'src') script.setAttribute(key, val);
+    });
+    script.onload = script.onreadystatechange = function () {
+      var readyState = this.readyState;
+      if (!readyState || 'loaded' === readyState || 'complete' === readyState) {
+        this.onload = this.onreadystatechange = null;
+        isFunction(callback) && callback.call(this);
+      }
+    };
+    if (heads.length) heads[0].appendChild(script);
+    else document.documentElement.appendChild(script);
+    return script;
   }
 
-  /**
-   * 以link元素加载样式文件至页面
-   * @param href: String
-   * @param callback: Function
-   */
-  function loadStyle(href, callback) {
-    var a = _slice.call(arguments),
-      href = a.shift();
-    a.splice(0, 0, ['href', href], 'link', { type: 'text/css', rel: 'stylesheet' });
-    loadFile.apply(arguments, a);
-  }
+  !function () {
+    /**
+     * 以link元素加载样式文件至页面
+     * @param {String} href
+     * @param {Function} callback
+     * @param {Object} options
+     */
+    loadStylesheet = function (href, callback, options) {
+      options = options || {};
+      var el = document.createElement('link'),
+        head = document.getElementsByTagName('head');
+      el.type = 'text/css';
+      el.rel = 'stylesheet';
+      el.href = href;
+      isFunction(callback) && styleOnload(el, callback);
+      head = head.length ? head[0] : document.documentElement;
+      if (options.prepend) {
+        head.insertBefore(el, head.childNodes[0]);
+      } else {
+        head.appendChild(el);
+      }
+      return el;
+    };
+    loadStylesheet.styleOnload = styleOnload;
+    //来自于SeaJS
+    function styleOnload(node, callback) {
+      // for IE6-9 and Opera
+      if (node.attachEvent) {
+        node.attachEvent('onload', callback);
+        // NOTICE:
+        // 1. "onload" will be fired in IE6-9 when the file is 404, but in
+        // this situation, Opera does nothing, so fallback to timeout.
+        // 2. "onerror" doesn't fire in any browsers!
+      } else {
+        // polling for Firefox, Chrome, Safari
+        setTimeout(function () { poll(node, callback); }, 0); // for cache
+      }
+    }
+    function poll(node, callback) {
+      if (callback.isCalled) return;
+      var isLoaded = false, sheet = node.sheet;
+      if (/webkit/i.test(navigator.userAgent)) {//webkit
+        if (sheet) isLoaded = true;
+      } else if (sheet) {// for Firefox
+        try {
+          if (sheet.cssRules) isLoaded = true;
+        } catch (ex) {
+          // NS_ERROR_DOM_SECURITY_ERR
+          if (ex.code === 1000) isLoaded = true;
+        }
+      }
+      if (isLoaded) {
+        // give time to render.
+        setTimeout(function () { callback.call(node); }, 1);
+      } else {
+        setTimeout(function () { poll(node, callback); }, 1);
+      }
+    }
+  }();
 
   /**
    * 以script标签形式加载多个js文件至页面
-   * @param jsSrcs: String/Array(String)
+   * @param {String/Array(String)} jsSrcs
    * @returns {*|{then, done}}，返回Deferred/Promise对象
    */
   function loadScripts(jsSrcs) {
@@ -823,7 +886,7 @@
 
   /**
    * 按顺序以script标签形式加载脚本文件至页面（确保上一个文件已加载完的请款下再继续加载下一个）
-   * @param jsSrcs: String/Array(String)
+   * @param {String/Array(String)} jsSrcs
    * @returns {*|{then, done}}，返回Deferred/Promise对象
    */
   function loadScriptInSequence(jsSrcs) {
@@ -842,7 +905,7 @@
 
   /**
    * 获取页面最大z-index值
-   * @param elements:Array[HTMLElement] 元素集合
+   * @param {Array[HTMLElement]} elements 元素集合
    * @returns {Number}
    */
   function getMaxZIndex(elements) {
@@ -851,8 +914,8 @@
     }
     return Math.max.apply(null, map(elements, function (el) {
       var style = getStyle(el, ['position', 'zIndex']);
-      if (style && /^(?:absolute|relative|fixed)$/i.test(style['position'])) {
-        return parseInt(style['zIndex']) || 0;
+      if (style && /^(?:absolute|relative|fixed)$/i.test(style.position)) {
+        return parseInt(style.zIndex) || 0;
       }
       return 0;
     }));
@@ -860,8 +923,8 @@
 
   /**
    * 限制大小，超出范围则等比缩小
-   * @param aOrigSize: Array(Number), [width, height]，原始尺寸
-   * @param aMaxSize: Array(Number), [width, height]，允许的最大尺寸
+   * @param {Array(Number)} aOrigSize: [width, height]，原始尺寸
+   * @param {Array(Number)} aMaxSize: [width, height]，允许的最大尺寸
    * @returns {Array} [width, height]
    */
   function getScaledSize(aOrigSize, aMaxSize) {
@@ -884,7 +947,7 @@
    * @returns {boolean}
    */
   function isStrictDocMode() {
-    return document.compatMode === "CSS1Compat";
+    return document.compatMode === 'CSS1Compat';
   }
 
   /**
@@ -902,28 +965,31 @@
 
   /**
    * 检测时间花费
-   * @returns {{init: init, getSpentTime: getSpentTime, logSpentTime: logSpentTime}}
+   * @returns {{init, getSpentTime, logSpentTime}}
    */
   function TimeSpentHelper() {
-    var startTime = new Date().getTime();
+    var startTime = new Date().getTime(),
+      console = window.console || {
+        log: function () { }
+      };
     return {
       init: function () { startTime = new Date().getTime(); },
       getSpentTime: function () {
         return new Date().getTime() - startTime;
       },
       logSpentTime: function (msg) {
-        console && console.log && console.log(msg || '', 'time spent is:', this.getSpentTime());
+        console.log(msg || '', 'time spent is:', this.getSpentTime());
       }
     };
   }
 
   /**
    * 拷贝对象的指定属性
-   * @param o: Array/Object
-   * @param fields: String/Array(String)/Array(Array(String)). 为['a', 'b', ...]则只复制并返回指定属性组成的对象；
+   * @param {Array/Object} o
+   * @param {String/Array(String)/Array(Array(String))} fields: 为['a', 'b', ...]则只复制并返回指定属性组成的对象；
    *   为[['a', 'a1'], ['b', 'b1'], ...]，则复制属性'a','b',...的值，并将key设置为'a1','b1',...
-   * @param fieldFilter: Function(value, key, obj), 单项过滤条件，返回false则表示不添加
-   * @returns (Array/Object)
+   * @param {Function} fieldFilter: (value, key, obj), 单项过滤条件，返回false则表示不添加
+   * @returns {Array/Object}
    */
   function copyFields(o, fields, fieldFilter) {
     var ret = {};
@@ -935,7 +1001,7 @@
         !isArray(field) && (field = [field]);
         return field;
       });
-      !isFunction(fieldFilter) && (fieldFilter = function () {});
+      !isFunction(fieldFilter) && (fieldFilter = noop);
       forEach(o, function (value, key, o) {
         var targetKey;
         key = '' + key;
@@ -999,7 +1065,7 @@
     var splitters = ['?', '&', '='];
     /**
      * 将含有?的字符串分解，只取?后面的部分
-     * @param queryString: String
+     * @param {String} queryString
      * @returns {String}
      */
     function getQueryString(queryString) {
@@ -1015,8 +1081,8 @@
     }
     /**
      * 将传入的查询字符串解析为对象
-     * @param queryString: String, i.e: a=b&b=1&c=2获?a=b&b=1&c=2或http://localhost/a.html?a=b&b=1&c=2
-     * @param isFormatted: Boolean, 为true，则表示传入的queryString为纯粹的以=/&分隔的字符串，不需要格式化
+     * @param {String} queryString: i.e: a=b&b=1&c=2获?a=b&b=1&c=2或http://localhost/a.html?a=b&b=1&c=2
+     * @param {Boolean} isFormatted: 为true，则表示传入的queryString为纯粹的以=/&分隔的字符串，不需要格式化
      * @returns {Object}
      */
     function parse(queryString, isFormatted) {
@@ -1041,7 +1107,7 @@
     }
     /**
      * 将解析后的参数对象组装成以?引导的，以=和&分隔组成的字符串
-     * @param o: Object
+     * @param {Object} o
      * @returns {string}, i.e: ?a=1&b=2
      */
     function toString(o) {
@@ -1096,8 +1162,8 @@
     }
     /**
      * 获取指定项的值
-     * @param o: Object
-     * @param keys: String/Array(String)，当值为String时，返回单项值
+     * @param {Object} o
+     * @param {String/Array(String)} keys: 当值为String时，返回单项值
      * @returns {String/Object}
      */
     function get(o, keys) {
@@ -1155,12 +1221,12 @@
 
   /**
    * 判断并返回传入的第一个为function的参数，否则返回一个空函数
-   * @param fn: Object
-   * @param alternateFn: Object
+   * @param {Object} fn
+   * @param {Object} alternateFn
    * @returns {Function}
    */
   function getFunction(fn, alternateFn) {
-    var okFn = function () {};
+    var okFn = noop;
     some(_slice.call(arguments), function (fn) {
       if (isFunction(fn)) {
         okFn = fn;
@@ -1172,19 +1238,19 @@
 
   /**
    * 判断并返回传参中第一个符合要求的值项
-   * @param valValidator: Function(value)，验证每项合法性的函数，合法则返回true。
+   * @param {Function} valValidator: (value)，验证每项合法性的函数，合法则返回true。
    *   当该参数不为Function时，则将该值计入待验证的值项，并且只验证值项不为null和undefined
-   * @param value1: Object 待验证的值项
-   * @param value2: Object
-   * @returns (Object)
+   * @param {Object} value1: 待验证的值项
+   * @param {Object} value2
+   * @returns {Object}
    */
   function getValidValue(valValidator, value1, value2) {
     var values = _slice.call(arguments),
-      valValidator = values.shift(),
+      valValidator = values.shift(),// eslint-disable-line
       result;
     if (!isFunction(valValidator)) {
       values.unshift(valValidator);
-      valValidator = function (val) { return !isNullOrUndefined(val); }
+      valValidator = function (val) { return !isNullOrUndefined(val); };
     }
     some(values, function (value) {
       //取值不为函数，则先执行为函数的值项
@@ -1199,15 +1265,14 @@
 
   /**
    * 用不定参数替换字符串里的占位符
-   * @param str: String, 里面可包含占位符{0}, {1}, {2}, ...
-   * @param args: Object，对应占位符序号的实际值
+   * @param {String} str: 里面可包含占位符{0}, {1}, {2}, ...
+   * @param {Object} args: 对应占位符序号的实际值
    * @returns {String}
    */
   function formatString(str, args) {
     if (!isNullOrUndefinedOrEmpty(str)) {
       args = _slice.call(arguments);
       args.shift();
-      var length = args.length;
       str = str.replace(/{(\d+)}/g, function ($, $1) {
         var v = args[$1];
         return isNullOrUndefined(v) ? '' : '' + v;
@@ -1218,10 +1283,10 @@
 
   /**
    * 根据布尔值调用并返回不同的结果
-   * @param flag: Boolean
-   * @param trueVal: Object, true值
-   * @param falseVal: Object false值
-   * @params nullOrUndefinedVal
+   * @param {Boolean} flag
+   * @param {Object} trueVal: true值
+   * @param {Object} falseVal: false值
+   * @params {Object} nullOrUndefinedVal
    * @returns {*}
    */
   function switcher(flag, trueVal, falseVal, nullOrUndefinedVal) {
@@ -1236,8 +1301,8 @@
 
   /**
    * 获取数组
-   * @param a: (*)
-   * @param allowEmpty: Boolean，为true，则允许数组项为空字符串。默认为不允许
+   * @param {*} a
+   * @param {Boolean} allowEmpty: 为true，则允许数组项为空字符串。默认为不允许
    * @returns {Array}
    */
   function getArray(a, allowEmpty) {
@@ -1245,54 +1310,65 @@
     return a;
   }
 
-  var eventHub = function (hub) {
-    var events = {};
+  function EventHub() {
+    this.events = {};
+  };
+
+  (function () {
     function getEventArray(event) {
-      if (!isArray(event)) event = getArray(event.toString().split(' '));
+      if (!isArray(event)) event = getArray(getArrayFromStrSplitByEmpty(event));
       return event;
     }
-    extend(hub, {
+    extend(EventHub.prototype, {
       fire: function (event) {
-        if (!event) return;
-        var args = [].slice.call(arguments, 1);
-        forEach(getEventArray(event), function (e) {
-          var a = events[e];
-          if (a && a.length) {
-            forEach(a, function (handler) {
-              handler.apply(null, args);
-            });
-          }
-        });
+        var me = this, args;
+        if (event) {
+          args = [].slice.call(arguments, 1);
+          forEach(getEventArray(event), function (e) {
+            var a = me.events[e];
+            if (a && a.length) {
+              forEach(a, function (handler) {
+                handler.apply(null, args);
+              });
+            }
+          });
+        }
+        return me;
       },
       on: function (event, handler) {
-        if (!event) return;
-        forEach(getEventArray(event), function (e) {
-          var a = events[e];
-          if (!isArray(a)) a = events[e] = getArray(a);
-          a.push(handler);
-        });
+        var me = this;
+        if (event) {
+          forEach(getEventArray(event), function (e) {
+            var a = me.events[e];
+            if (!isArray(a)) a = me.events[e] = getArray(a);
+            a.push(handler);
+          });
+        }
+        return me;
       },
       off: function (event, handler) {
-        if (!event) return;
-        var i, isAll = arguments.length === 1 || handler === undefined;
-        forEach(getEventArray(event), function (e) {
-          var a = events[e];
-          if (a) {
-            if (isAll) delete events[e];
-            else {
-              for (i = 0; i < a.length; i++) {
-                if (a[i] === handler) {
-                  a.splice(i, 1);
-                  i--;
+        var me = this, i, isAll;
+        if (event) {
+          isAll = arguments.length === 1 || handler === undefined;
+          forEach(getEventArray(event), function (e) {
+            var a = me.events[e];
+            if (a) {
+              if (isAll) delete me.events[e];
+              else {
+                for (i = 0; i < a.length; i++) {
+                  if (a[i] === handler) {
+                    a.splice(i, 1);
+                    i--;
+                  }
                 }
               }
             }
-          }
-        });
+          });
+        }
+        return me;
       }
     });
-    return hub;
-  }({});
+  })();
 
   extend(helper, {
     isNullOrUndefined: isNullOrUndefined,
@@ -1300,6 +1376,8 @@
     registerNamespace: registerNamespace,
     checkNamespace: checkNamespace,
     getChildren: getChildren,
+    getParents: getParents,
+    closest: closest,
     getOffset: getOffset,
     trim: trim,
     htmlEncode: htmlEncode,
@@ -1338,9 +1416,8 @@
     addEventListener: addEventListener,
     removeEventListener: removeEventListener,
     loader: {
-      loadFile: loadFile,
       loadScript: loadScript,
-      loadStyle: loadStyle,
+      loadStylesheet: loadStylesheet,
       loadScripts: loadScripts,
       loadScriptInSequence: loadScriptInSequence,
       loadIframe: loadIframe
@@ -1360,7 +1437,7 @@
     formatString: formatString,
     switcher: switcher,
     getArray: getArray,
-    eventHub: eventHub
+    EventHub: EventHub
   });
 
   extend(helper.prototype, {
@@ -1375,6 +1452,32 @@
           return !some(a, function (i) { return i === child; });
         }));
       });
+      return a;
+    },
+    getParents: function (className, onlyOne) {
+      var a = [];
+      if (isArray(this._)) {
+        forEach(this._, function (el) {
+          a = a.concat(filter(getParents(el, className, onlyOne), function (item) {
+            return !some(a, function (ai) {
+              return ai === item;
+            });
+          }));
+        });
+      } else a = getParents(this._, className, onlyOne);
+      return a;
+    },
+    closest: function (className) {
+      var a = [];
+      if (isArray(this._)) {
+        forEach(this._, function (el) {
+          a = a.concat(filter([closest(el, className)], function (item) {
+            return !some(a, function (ai) {
+              return ai === item;
+            });
+          }));
+        });
+      } else a = closest(this._, className);
       return a;
     },
     getOffset: function () { return getOffset(isArray(this._) ? this._[0] : this._); },
@@ -1398,7 +1501,7 @@
     filter: function (callback) { return filter(this._, callback); },
     some: function (callback) { return some(this._, callback); },
     map: function (callback) { return map(this._, callback); },
-    indexOf: function (searchElement, fromIndex) { return indexOf(this._, searchElement, fromIndex) },
+    indexOf: function (searchElement, fromIndex) { return indexOf(this._, searchElement, fromIndex); },
     unique: function (enableSorting, notEqualComparator) { return unique(this._, enableSorting, notEqualComparator); },
     getClassObject: function () { return getClassObject(isArray(this._) ? this._[0] : this._); },
     getClassNameFromClassObject: function () { return getClassNameFromClassObject(this._); },
@@ -1461,7 +1564,7 @@
       return switcher.apply(null, [this._].concat(args));
     }
   });
-  if (typeof define === "function" && define.amd) window.xHelper = helper, define(function () { return helper; });
-  else if (typeof module === "object" && module.exports) module.exports = helper;
+  if (typeof define === 'function' && define.amd) window.xHelper = helper, define(function () { return helper; });
+  else if (typeof module === 'object' && module.exports) module.exports = helper;
   else window.xHelper = helper;
-}(typeof xHelper !== 'undefined' && xHelper, typeof window !== "undefined" ? window : this);
+}(typeof window !== 'undefined' ? window : this);
